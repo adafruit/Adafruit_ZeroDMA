@@ -4,7 +4,7 @@
 
 class Adafruit_ZeroDMA {
  public:
-  Zero_DMA(void);
+  Adafruit_ZeroDMA(void);
 
   status_code allocate(void);
   void configure_peripheraltrigger(uint32_t periphtrigger);
