@@ -10,6 +10,7 @@ Adafruit_ZeroDMA::Adafruit_ZeroDMA(void) {
 
 void Adafruit_ZeroDMA::configure_peripheraltrigger(uint32_t periphtrigger) {
   _config.peripheral_trigger = periphtrigger;
+  //Serial.print("periph trigger: 0x"); Serial.println(periphtrigger,HEX);
 }
 
 void Adafruit_ZeroDMA::configure_triggeraction(dma_transfer_trigger_action action) {
@@ -22,7 +23,11 @@ status_code Adafruit_ZeroDMA::allocate(void) {
 
 void Adafruit_ZeroDMA::setup_transfer_descriptor(void *source_memory, void *destination_memory, uint32_t xfercount, dma_beat_size beatsize, bool srcinc, bool destinc)
 {
-    struct dma_descriptor_config descriptor_config;
+  uint8_t countsize;
+  if (beatsize == DMA_BEAT_SIZE_BYTE) countsize = 1;
+  if (beatsize == DMA_BEAT_SIZE_HWORD) countsize = 2; // in bytes
+  if (beatsize == DMA_BEAT_SIZE_WORD) countsize = 4;  // in bytes
+    
     dma_descriptor_get_config_defaults(&descriptor_config);
 
     descriptor_config.beat_size = beatsize;
@@ -33,11 +38,11 @@ void Adafruit_ZeroDMA::setup_transfer_descriptor(void *source_memory, void *dest
 
     descriptor_config.source_address = (uint32_t)source_memory;
     if (srcinc) 
-      descriptor_config.source_address += xfercount; // the *end* of the transfer
+      descriptor_config.source_address += countsize*xfercount; // the *end* of the transfer
 
     descriptor_config.destination_address = (uint32_t)destination_memory;
     if (destinc) 
-       descriptor_config.destination_address += xfercount; // the *end* of the transfer
+       descriptor_config.destination_address += countsize*xfercount; // the *end* of the transfer
 
     dma_descriptor_create(&_descriptor, &descriptor_config);
 }
@@ -60,4 +65,13 @@ void Adafruit_ZeroDMA::register_callback(dma_callback_t callback, dma_callback_t
 
 void Adafruit_ZeroDMA::enable_callback(dma_callback_type type) {
   return dma_enable_callback(&_resource, type);
+}
+
+void Adafruit_ZeroDMA::loop(boolean on) {
+  if (on) {
+    descriptor_config.next_descriptor_address = (uint32_t)&_descriptor;
+  } else {
+     descriptor_config.next_descriptor_address = 0;
+  }
+  _descriptor.DESCADDR.reg = descriptor_config.next_descriptor_address;
 }

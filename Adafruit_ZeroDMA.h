@@ -8,6 +8,7 @@ class Adafruit_ZeroDMA {
 
   status_code allocate(void);
   void configure_peripheraltrigger(uint32_t periphtrigger);
+
   void configure_triggeraction(dma_transfer_trigger_action action);
 
   void setup_transfer_descriptor(void *source_memory, void *dest_memory, uint32_t xfercount, dma_beat_size beatsize = DMA_BEAT_SIZE_BYTE, bool srcinc = true, bool destinc = true);
@@ -16,8 +17,12 @@ class Adafruit_ZeroDMA {
   void trigger_transfer(void);
   void register_callback(dma_callback_t callback, dma_callback_type type = DMA_CALLBACK_TRANSFER_DONE);
   void enable_callback(dma_callback_type type = DMA_CALLBACK_TRANSFER_DONE);
+
+  void loop(boolean on);
+
  private:  
   struct dma_resource_config _config;
+  struct dma_descriptor_config descriptor_config;
   COMPILER_ALIGNED(16) DmacDescriptor _descriptor;
   struct dma_resource _resource;
 };
