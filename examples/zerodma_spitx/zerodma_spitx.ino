@@ -1,5 +1,6 @@
 #include <SPI.h>
 #include <Adafruit_ZeroDMA.h>
+#include <Adafruit_ASFcore.h>
 #include "utility/dmac.h"
 #include "utility/dma.h"
 
@@ -39,7 +40,7 @@ void setup() {
                                   DATA_LENGTH,                           // this many...
                                   DMA_BEAT_SIZE_BYTE,                    // bytes/hword/words
                                   true,                                  // increment source addr?
-                                  false);                                // increment source addr?
+                                  false);                                // increment dest addr?
 
   Serial.print("Adding descriptor...");
   stat = myDMA.add_descriptor();
@@ -69,7 +70,8 @@ void setup() {
   while (! transfer_is_done);             // chill
 
   PORT->Group[0].OUTCLR.reg = (1 << 17);  // clear PORTA.17 high "digitalWrite(13, LOW)"
-  
+
+  SPI.endTransaction();  
   Serial.println("Done!");
 }
 
