@@ -3,7 +3,7 @@ sudo: false
 before_install:
   - source <(curl -SLs https://raw.githubusercontent.com/chatelao/travis-ci-arduino/master/install.sh)
 script:
-  - build_platform arduino_zero_native
+  - build_platform zero
 notifications:
   email:
     on_success: change
