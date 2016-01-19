@@ -51,6 +51,10 @@ status_code Adafruit_ZeroDMA::add_descriptor(void) {
    return dma_add_descriptor(&_resource, &_descriptor);
 }
 
+status_code Adafruit_ZeroDMA::free(void) {
+   return dma_free(&_resource);
+}
+
 void Adafruit_ZeroDMA::trigger_transfer(void) {
   return dma_trigger_transfer(&_resource);
 }
