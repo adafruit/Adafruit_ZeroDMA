@@ -1,6 +1,7 @@
 #include <SPI.h>
-#include <Adafruit_ZeroDMA.h>
 #include <Adafruit_ASFcore.h>
+#include "status_codes.h"
+#include <Adafruit_ZeroDMA.h>
 #include "utility/dmac.h"
 #include "utility/dma.h"
 
