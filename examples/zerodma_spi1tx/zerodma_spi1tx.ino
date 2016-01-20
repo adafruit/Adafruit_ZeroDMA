@@ -1,4 +1,6 @@
-// DMA on second SPI peripheral 'SPI1' (pins 11/12/13)
+// Double-buffered DMA on second SPI peripheral 'SPI1' (pins 11/12/13).
+// Interleaves between two data buffers...one is filled with new data
+// as the other is being transmitted; an explicit form of multitasking.
 
 #include <SPI.h>
 #include <Adafruit_ASFcore.h>
@@ -17,15 +19,19 @@ SPIClass SPI1(      // 11/12/13 classic UNO-style SPI
   SERCOM_RX_PAD_3); // RX pad (MISO pad)
 
 Adafruit_ZeroDMA myDMA;
-status_code stat; // For DMA status codes
+status_code      stat; // For DMA status
 
-// Memory we'll pipe out to SPI1
-#define DATA_LENGTH (2048)
-uint8_t source_memory[DATA_LENGTH];
+// Data we'll pipe out to SPI1.  There are TWO buffers; one being
+// filled with new data while the other's being transmitted in
+// the background.
+#define DATA_LENGTH (512)
+uint8_t source_memory[2][DATA_LENGTH],
+        buffer_being_filled = 0, // Index of 'filling' buffer
+        buffer_value        = 0; // Value of fill
 
-volatile bool transfer_is_done = false; // Done yet?
+volatile bool transfer_is_done = true; // Done yet?
 
-// Optional callback for end-of-DMA-transfer
+// Callback for end-of-DMA-transfer
 void dma_callback(struct dma_resource* const resource) {
   transfer_is_done = true;
 }
@@ -34,9 +40,6 @@ void setup() {
   Serial.begin(115200);
   while(!Serial);
   Serial.println("DMA test: SPI1 data out");
-
-  // Prefill the source with incrementing bytes
-  for(uint32_t i=0; i<DATA_LENGTH; i++) source_memory[i] = i;
 
   SPI1.begin();
 
@@ -49,15 +52,6 @@ void setup() {
   stat = myDMA.allocate();
   printStatus(stat);
 
-  Serial.println("Setting up transfer");
-  myDMA.setup_transfer_descriptor(
-    source_memory,                    // move data from here
-    (void *)(&SERCOM1->SPI.DATA.reg), // to here
-    DATA_LENGTH,                      // this many...
-    DMA_BEAT_SIZE_BYTE,               // bytes/hword/words
-    true,                             // increment source addr?
-    false);                           // increment dest addr?
-
   Serial.print("Adding descriptor...");
   stat = myDMA.add_descriptor();
   printStatus(stat);
@@ -68,18 +62,36 @@ void setup() {
 }
 
 void loop() {
-  Serial.println("Starting transfer job");
-  // Set up 1 MHz SPI xfer
-  SPI1.beginTransaction(SPISettings(1000000, MSBFIRST, SPI_MODE0));
+  // Fill buffer with new data.  The alternate buffer might still be
+  // transmitting in the background via DMA.
+  memset(source_memory[buffer_being_filled], buffer_value, DATA_LENGTH);
 
-  stat = myDMA.start_transfer_job();
-  printStatus(stat);
-
-  while(!transfer_is_done); // chill
-
+  // Wait for prior transfer to complete before starting new one...
+  Serial.print("Waiting on prior transfer...");
+  while(!transfer_is_done) Serial.write('.');
   SPI1.endTransaction();
   Serial.println("Done!");
-  delay(100);
+
+  // Set up DMA transfer using the newly-filled buffer as source...
+  myDMA.setup_transfer_descriptor(
+    source_memory[buffer_being_filled], // move data from here
+    (void *)(&SERCOM1->SPI.DATA.reg),   // to here
+    DATA_LENGTH,                        // this many...
+    DMA_BEAT_SIZE_BYTE,                 // bytes/hword/words
+    true,                               // increment source addr?
+    false);                             // increment dest addr?
+
+  // Begin new transfer...
+  Serial.println("Starting new transfer job");
+  SPI1.beginTransaction(SPISettings(1000000, MSBFIRST, SPI_MODE0));
+  transfer_is_done = false;                      // Reset 'done' flag
+  stat             = myDMA.start_transfer_job(); // Go!
+  printStatus(stat);
+
+  // Switch buffer indices so the alternate buffer is filled/xfer'd
+  // on the next pass.
+  buffer_being_filled = 1 - buffer_being_filled;
+  buffer_value++;
 }
 
 void printStatus(status_code stat) {
