@@ -1,3 +1,6 @@
+#ifndef _ADAFRUIT_ZERODMA_H_
+#define _ADAFRUIT_ZERODMA_H_
+
 #include "Arduino.h"
 #include "utility/dmac.h"
 #include "utility/dma.h"
@@ -31,5 +34,4 @@ class Adafruit_ZeroDMA {
   struct dma_resource _resource;
 };
 
-//static void configure_dma_resource(struct dma_resource *resource);
-
+#endif // _ADAFRUIT_ZERODMA_H_
