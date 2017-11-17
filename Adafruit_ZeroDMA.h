@@ -2,36 +2,59 @@
 #define _ADAFRUIT_ZERODMA_H_
 
 #include "Arduino.h"
-#include "utility/dmac.h"
 #include "utility/dma.h"
+
+// Status codes returned by some DMA functions and/or held in
+// a channel's jobStatus variable.
+enum ZeroDMAstatus {
+	DMA_STATUS_OK = 0,
+	DMA_STATUS_ERR_NOT_FOUND,
+	DMA_STATUS_ERR_NOT_INITIALIZED,
+	DMA_STATUS_ERR_INVALID_ARG,
+	DMA_STATUS_ERR_IO,
+	DMA_STATUS_ERR_TIMEOUT,
+	DMA_STATUS_BUSY,
+	DMA_STATUS_SUSPEND,
+	DMA_STATUS_ABORTED,
+	DMA_STATUS_JOBSTATUS = -1 // For printStatus() function
+};
 
 class Adafruit_ZeroDMA {
  public:
   Adafruit_ZeroDMA(void);
 
-  status_code allocate(void);
-  void configure_peripheraltrigger(uint32_t periphtrigger);
+  // DMA channel functions
+  ZeroDMAstatus   allocate(void), // Allocates DMA channel
+                  startJob(void),
+                  free(void);     // Deallocates DMA channel
+  void            trigger(void),
+                  setTrigger(uint8_t trigger),
+                  setAction(dma_transfer_trigger_action action),
+                  setCallback(void (*callback)(Adafruit_ZeroDMA *) = NULL,
+                    dma_callback_type type = DMA_CALLBACK_TRANSFER_DONE),
+                  loop(boolean flag),
+                  suspend(void),
+                  resume(void),
+                  abort(void),
+                  printStatus(ZeroDMAstatus s = DMA_STATUS_JOBSTATUS);
 
-  void configure_triggeraction(dma_transfer_trigger_action action);
+  // DMA descriptor functions
+  DmacDescriptor *addDescriptor(void *src, void *dst, uint32_t count = 0,
+                    dma_beat_size size = DMA_BEAT_SIZE_BYTE,
+                    bool srcInc = true, bool dstInc = true);
+  void            changeDescriptor(DmacDescriptor *d, void *src = NULL,
+                    void *dst = NULL, uint32_t count = 0);
 
-  void setup_transfer_descriptor(void *source_memory, void *dest_memory, uint32_t xfercount, dma_beat_size beatsize = DMA_BEAT_SIZE_BYTE, bool srcinc = true, bool destinc = true);
-  status_code add_descriptor(DmacDescriptor* descriptor = NULL);
-  status_code start_transfer_job(void);
-  status_code free(void);
-  void trigger_transfer(void);
-  void register_callback(dma_callback_t callback, dma_callback_type type = DMA_CALLBACK_TRANSFER_DONE);
-  void enable_callback(dma_callback_type type = DMA_CALLBACK_TRANSFER_DONE);
-  void loop(boolean on);
-  void suspend(),
-       resume(),
-       abort(),
-       modify(void *src, void *dst, uint32_t len);
+  void            _IRQhandler(uint8_t flags); // DO NOT TOUCH
 
- private:  
-  struct dma_resource_config _config;
-  struct dma_descriptor_config descriptor_config;
-  COMPILER_ALIGNED(16) DmacDescriptor _descriptor;
-  struct dma_resource _resource;
+ protected:  
+  uint8_t                     channel;
+  volatile enum ZeroDMAstatus jobStatus;
+  bool                        hasDescriptors;
+  bool                        loopFlag;
+  uint8_t                     peripheralTrigger;
+  dma_transfer_trigger_action triggerAction;
+  void                      (*callback[DMA_CALLBACK_N])(Adafruit_ZeroDMA *);
 };
 
 #endif // _ADAFRUIT_ZERODMA_H_
