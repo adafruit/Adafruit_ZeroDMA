@@ -34,8 +34,13 @@ void setup() {
   SPI.begin();
 
   Serial.println("Configuring DMA trigger");
+#ifdef __SAMD51__
+  // SERCOM2 is the 'native' SPI SERCOM on Metro M4
+  myDMA.setTrigger(SERCOM2_DMAC_ID_TX);
+#else
   // SERCOM4 is the 'native' SPI SERCOM on most M0 boards
   myDMA.setTrigger(SERCOM4_DMAC_ID_TX);
+#endif
   myDMA.setAction(DMA_TRIGGER_ACTON_BEAT);
 
   Serial.print("Allocating DMA channel...");
@@ -45,7 +50,11 @@ void setup() {
   Serial.println("Setting up transfer");
   myDMA.addDescriptor(
     source_memory,                    // move data from here
-    (void *)(&SERCOM4->SPI.DATA.reg), // to here
+#ifdef __SAMD51__
+    (void *)(&SERCOM2->SPI.DATA.reg), // to here (M4)
+#else
+    (void *)(&SERCOM4->SPI.DATA.reg), // to here (M0)
+#endif
     DATA_LENGTH,                      // this many...
     DMA_BEAT_SIZE_BYTE,               // bytes/hword/words
     true,                             // increment source addr?
