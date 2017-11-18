@@ -54,17 +54,15 @@ void setup() {
   myDMA.printStatus(stat);
 
   Serial.println("Triggering DMA transfer...");
-  // 'Raw' PORT write is used for speed -- digitalWrite() is notoriously
-  // slow.  Can then use oscilloscope to benchmark the transfer time.
   t = micros();
-  PORT_IOBUS->Group[0].OUTSET.reg = (1 << 17); // i.e. digitalWrite(13, HIGH)
+  digitalWrite(LED_BUILTIN, HIGH);
   myDMA.trigger();
 
   // Your code could do other things here while copy happens!
 
   while(!transfer_is_done); // Chill until DMA transfer completes
 
-  PORT_IOBUS->Group[0].OUTCLR.reg = (1 << 17); // i.e. digitalWrite(13, LOW)
+  digitalWrite(LED_BUILTIN, LOW);
   t = micros() - t; // Elapsed time
 
   Serial.print("Done! ");
@@ -76,9 +74,9 @@ void setup() {
 
   // Now repeat the same operation, but 'manually' using memcpy() (not DMA):
   t = micros();
-  PORT_IOBUS->Group[0].OUTSET.reg = (1 << 17); // i.e. digitalWrite(13, HIGH)
+  digitalWrite(LED_BUILTIN, HIGH);
   memcpy(destination_memory, source_memory,  DATA_LENGTH);
-  PORT_IOBUS->Group[0].OUTCLR.reg = (1 << 17); // i.e. digitalWrite(13, LOW)
+  digitalWrite(LED_BUILTIN, LOW);
   t = micros() - t; // Elapsed time
   Serial.print("Same operation without DMA: ");
   Serial.print(t);

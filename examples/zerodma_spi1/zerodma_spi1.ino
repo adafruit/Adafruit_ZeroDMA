@@ -63,10 +63,8 @@ void setup() {
   SPI.beginTransaction(SPISettings(12000000, MSBFIRST, SPI_MODE0));
 
   Serial.println("Starting transfer job");
-  // 'Raw' PORT write is used for speed -- digitalWrite() is notoriously
-  // slow.  Can then use oscilloscope to benchmark the transfer time.
   t = micros();
-  PORT_IOBUS->Group[0].OUTSET.reg = (1 << 17); // i.e. digitalWrite(13, HIGH)
+  digitalWrite(LED_BUILTIN, HIGH);
 
   // Because we've configured a peripheral trigger (SPI), there's
   // no need to manually trigger transfer, it starts up on its own.
@@ -76,7 +74,7 @@ void setup() {
 
   while(!transfer_is_done); // Chill until DMA transfer completes
 
-  PORT_IOBUS->Group[0].OUTCLR.reg = (1 << 17); // i.e. digitalWrite(13, LOW)
+  digitalWrite(LED_BUILTIN, LOW);
   t = micros() - t; // Elapsed time
 
   SPI.endTransaction();

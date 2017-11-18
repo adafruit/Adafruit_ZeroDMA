@@ -80,16 +80,25 @@ Adafruit_ZeroDMA::Adafruit_ZeroDMA(void) {
 // (It's done this way because jobStatus and callback[] are protected
 // elements in the ZeroDMA object -- we can't touch them in C, but the
 // next function after this, being part of the ZeroDMA class, can.)
+#ifdef __SAMD51__
+void DMAC_0_Handler(void) {
+#else
 void DMAC_Handler(void) {
+#endif
 	cpu_irq_enter_critical();
 
 	uint8_t channel = DMAC->INTPEND.bit.ID; // Channel # triggered interrupt
 	if(channel < DMAC_CH_NUM) {
 		Adafruit_ZeroDMA *dma;
 		if((dma = _dmaPtr[channel])) { // -> Channel's ZeroDMA object
+#ifdef __SAMD51__
+			// Call IRQ handler with channel #
+			dma->_IRQhandler(channel);
+#else
 			DMAC->CHID.bit.ID = channel;
 			// Call IRQ handler with interrupt flag(s)
 			dma->_IRQhandler(DMAC->CHINTFLAG.reg);
+#endif
 		}
 	}
 
@@ -97,21 +106,38 @@ void DMAC_Handler(void) {
 }
 
 void Adafruit_ZeroDMA::_IRQhandler(uint8_t flags) {
+#ifdef __SAMD51__
+	// 'flags' is initially passed in as channel number,
+	// from which we look up the actual interrupt flags...
+	flags = DMAC->Channel[flags].CHINTFLAG.reg;
+#endif
 	if(flags & DMAC_CHINTENCLR_TERR) {
 		// Clear error flag
+#ifdef __SAMD51__
+		DMAC->Channel[channel].CHINTFLAG.reg = DMAC_CHINTENCLR_TERR;
+#else
 		DMAC->CHINTFLAG.reg = DMAC_CHINTENCLR_TERR;
+#endif
 		jobStatus           = DMA_STATUS_ERR_IO;
 		if(callback[DMA_CALLBACK_TRANSFER_ERROR])
 			callback[DMA_CALLBACK_TRANSFER_ERROR](this);
 	} else if(flags & DMAC_CHINTENCLR_TCMPL) {
 		// Clear transfer complete flag
+#ifdef __SAMD51__
+		DMAC->Channel[channel].CHINTFLAG.reg = DMAC_CHINTENCLR_TCMPL;
+#else
 		DMAC->CHINTFLAG.reg = DMAC_CHINTENCLR_TCMPL;
+#endif
 		jobStatus           = DMA_STATUS_OK;
 		if(callback[DMA_CALLBACK_TRANSFER_DONE])
 			callback[DMA_CALLBACK_TRANSFER_DONE](this);
 	} else if(flags & DMAC_CHINTENCLR_SUSP) {
 		// Clear channel suspend flag
+#ifdef __SAMD51__
+		DMAC->Channel[channel].CHINTFLAG.reg = DMAC_CHINTENCLR_SUSP;
+#else
 		DMAC->CHINTFLAG.reg = DMAC_CHINTENCLR_SUSP;
+#endif
 		jobStatus           = DMA_STATUS_SUSPEND;
 		if(callback[DMA_CALLBACK_CHANNEL_SUSPEND])
 			callback[DMA_CALLBACK_CHANNEL_SUSPEND](this);
@@ -149,6 +175,8 @@ ZeroDMAstatus Adafruit_ZeroDMA::allocate(void) {
 	if(!_channelMask) { // No channels allocated yet; initialize DMA!
 #if (SAML21) || (SAML22) || (SAMC20) || (SAMC21)
 		PM->AHBMASK.bit.DMAC_       = 1;
+#elif defined(__SAMD51__)
+		MCLK->AHBMASK.bit.DMAC_     = 1; // Initialize DMA clocks
 #else
 		PM->AHBMASK.bit.DMAC_       = 1; // Initialize DMA clocks
 		PM->APBBMASK.bit.DMAC_      = 1;
@@ -166,25 +194,43 @@ ZeroDMAstatus Adafruit_ZeroDMA::allocate(void) {
 		DMAC->CTRL.reg = DMAC_CTRL_DMAENABLE | DMAC_CTRL_LVLEN(0xF);
 
 		// Enable DMA interrupt at lowest priority
+#ifdef __SAMD51__
+		NVIC_EnableIRQ(DMAC_0_IRQn);
+		NVIC_SetPriority(DMAC_0_IRQn, (1 << __NVIC_PRIO_BITS) - 1);
+#else
 		NVIC_EnableIRQ(DMAC_IRQn);
 		NVIC_SetPriority(DMAC_IRQn, (1 << __NVIC_PRIO_BITS) - 1);
+#endif
 	}
 
 	_channelMask    |= 1 << channel; // Mark channel as allocated
 	_dmaPtr[channel] = this;         // Channel-index-to-object pointer
 
 	// Reset the allocated channel
+#ifdef __SAMD51__
+	DMAC->Channel[channel].CHCTRLA.bit.ENABLE  = 0;
+	DMAC->Channel[channel].CHCTRLA.bit.SWRST   = 1;
+#else
 	DMAC->CHID.bit.ID         = channel;
 	DMAC->CHCTRLA.bit.ENABLE  = 0;
 	DMAC->CHCTRLA.bit.SWRST   = 1;
+#endif
 
 	// Clear software trigger
 	DMAC->SWTRIGCTRL.reg     &= ~(1 << channel);
 
 	// Configure default behaviors
+#ifdef __SAMD51__
+	DMAC->Channel[channel].CHPRILVL.bit.PRILVL = 0;
+	DMAC->Channel[channel].CHCTRLA.bit.TRIGSRC = peripheralTrigger;
+	DMAC->Channel[channel].CHCTRLA.bit.TRIGACT = triggerAction;
+	DMAC->Channel[channel].CHCTRLA.bit.BURSTLEN =
+	  DMAC_CHCTRLA_BURSTLEN_SINGLE_Val; // Single-beat burst length
+#else
 	DMAC->CHCTRLB.bit.LVL     = 0;
 	DMAC->CHCTRLB.bit.TRIGSRC = peripheralTrigger;
 	DMAC->CHCTRLB.bit.TRIGACT = triggerAction;
+#endif
 
 	cpu_irq_leave_critical();
 
@@ -205,10 +251,16 @@ ZeroDMAstatus Adafruit_ZeroDMA::free(void) {
 		// Valid in-use channel; release it
 		_channelMask &= ~(1 << channel); // Clear bit
 		if(!_channelMask) {              // No more channels in use?
+#ifdef __SAMD51__
+			NVIC_DisableIRQ(DMAC_0_IRQn); // Disable DMA interrupt
+			DMAC->CTRL.bit.DMAENABLE = 0; // Disable DMA
+			MCLK->AHBMASK.bit.DMAC_  = 0; // Disable DMA clock
+#else
 			NVIC_DisableIRQ(DMAC_IRQn);   // Disable DMA interrupt
 			DMAC->CTRL.bit.DMAENABLE = 0; // Disable DMA
 			PM->APBBMASK.bit.DMAC_   = 0; // Disable DMA clocks
 			PM->AHBMASK.bit.DMAC_    = 0;
+#endif
 		}
 		_dmaPtr[channel] = NULL;
 		channel          = 0xFF;
@@ -239,10 +291,18 @@ ZeroDMAstatus Adafruit_ZeroDMA::startJob(void) {
 		for(i=0; i<DMA_CALLBACK_N; i++)
 			if(callback[i]) interruptMask |= (1 << i);
 		jobStatus            = DMA_STATUS_BUSY;
+#ifdef __SAMD51__
+		DMAC->Channel[channel].CHINTENSET.reg =
+		  DMAC_CHINTENSET_MASK &  interruptMask;
+		DMAC->Channel[channel].CHINTENCLR.reg =
+		  DMAC_CHINTENCLR_MASK & ~interruptMask;
+		DMAC->Channel[channel].CHCTRLA.bit.ENABLE = 1;
+#else
 		DMAC->CHID.bit.ID    = channel;
 		DMAC->CHINTENSET.reg = DMAC_CHINTENSET_MASK &  interruptMask;
 		DMAC->CHINTENCLR.reg = DMAC_CHINTENCLR_MASK & ~interruptMask;
 		DMAC->CHCTRLA.bit.ENABLE = 1; // Enable the transfer channel
+#endif
 	}
 
 	cpu_irq_leave_critical();
@@ -261,8 +321,12 @@ void Adafruit_ZeroDMA::setCallback(
 // Suspend/resume don't quite do what I thought -- avoid using for now.
 void Adafruit_ZeroDMA::suspend(void) {
 	cpu_irq_enter_critical();
+#ifdef __SAMD51__
+	DMAC->Channel[channel].CHCTRLB.reg |= DMAC_CHCTRLB_CMD_SUSPEND;
+#else
 	DMAC->CHID.bit.ID  = channel;
 	DMAC->CHCTRLB.reg |= DMAC_CHCTRLB_CMD_SUSPEND;
+#endif
 	cpu_irq_leave_critical();
 }
 
@@ -272,8 +336,12 @@ void Adafruit_ZeroDMA::resume(void) {
 	if(jobStatus == DMA_STATUS_SUSPEND) {
 		int      count;
 		uint32_t bitMask   = 1 << channel;
+#ifdef __SAMD51__
+		DMAC->Channel[channel].CHCTRLB.reg |= DMAC_CHCTRLB_CMD_RESUME;
+#else
 		DMAC->CHID.bit.ID  = channel;
 		DMAC->CHCTRLB.reg |= DMAC_CHCTRLB_CMD_RESUME;
+#endif
 
 		for(count = 0; (count < MAX_JOB_RESUME_COUNT) &&
 		  !(DMAC->BUSYCH.reg & bitMask); count++);
@@ -288,8 +356,12 @@ void Adafruit_ZeroDMA::resume(void) {
 void Adafruit_ZeroDMA::abort(void) {
 	if(channel <= DMAC_CH_NUM) {
 		cpu_irq_enter_critical();
+#ifdef __SAMD51__
+		DMAC->Channel[channel].CHCTRLA.reg = 0; // Disable channel
+#else
 		DMAC->CHID.bit.ID = channel; // Select channel
 		DMAC->CHCTRLA.reg = 0;       // Disable
+#endif
 		jobStatus         = DMA_STATUS_ABORTED;
 		cpu_irq_leave_critical();
 	}
@@ -304,8 +376,12 @@ void Adafruit_ZeroDMA::setTrigger(uint8_t trigger) {
 	// (old lib required configure before alloc -- either way OK now)
 	if(channel < DMAC_CH_NUM) {
 		cpu_irq_enter_critical();
+#ifdef __SAMD51__
+		DMAC->Channel[channel].CHCTRLA.bit.TRIGSRC = trigger;
+#else
 		DMAC->CHID.bit.ID         = channel;
 		DMAC->CHCTRLB.bit.TRIGSRC = trigger;
+#endif
 		cpu_irq_leave_critical();
 	}
 }
@@ -319,8 +395,12 @@ void Adafruit_ZeroDMA::setAction(dma_transfer_trigger_action action) {
 	// (old lib required configure before alloc -- either way OK now)
 	if(channel < DMAC_CH_NUM) {
 		cpu_irq_enter_critical();
+#ifdef __SAMD51__
+		DMAC->Channel[channel].CHCTRLA.bit.TRIGACT = action;
+#else
 		DMAC->CHID.bit.ID         = channel;
 		DMAC->CHCTRLB.bit.TRIGACT = action;
+#endif
 		cpu_irq_leave_critical();
 	}
 }
@@ -434,10 +514,18 @@ void Adafruit_ZeroDMA::changeDescriptor(DmacDescriptor *desc,
 			desc->DSTADDR.reg += desc->BTCNT.reg * bytesPerBeat;
 	}
 
+// I think this code is here by accident -- disabling for now.
+#if 0
 	cpu_irq_enter_critical();
 	jobStatus          = DMA_STATUS_OK;
+#ifdef __SAMD51__
+	DMAC->Channel[channel].CHCTRLA.bit.ENABLE = 1;
+#else
+	DMAC->CHID.bit.ID  = channel;
 	DMAC->CHCTRLA.reg |= DMAC_CHCTRLA_ENABLE;
+#endif
 	cpu_irq_leave_critical();
+#endif
 }
 
 // TODO: delete descriptor, delete whole descriptor chain
