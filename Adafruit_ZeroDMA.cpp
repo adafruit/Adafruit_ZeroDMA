@@ -105,6 +105,13 @@ void DMAC_Handler(void) {
 	cpu_irq_leave_critical();
 }
 
+#ifdef __SAMD51__
+void DMAC_1_Handler(void) __attribute__((weak, alias("DMAC_0_Handler")));
+void DMAC_2_Handler(void) __attribute__((weak, alias("DMAC_0_Handler")));
+void DMAC_3_Handler(void) __attribute__((weak, alias("DMAC_0_Handler")));
+void DMAC_4_Handler(void) __attribute__((weak, alias("DMAC_0_Handler")));
+#endif
+
 void Adafruit_ZeroDMA::_IRQhandler(uint8_t flags) {
 #ifdef __SAMD51__
 	// 'flags' is initially passed in as channel number,
@@ -195,8 +202,12 @@ ZeroDMAstatus Adafruit_ZeroDMA::allocate(void) {
 
 		// Enable DMA interrupt at lowest priority
 #ifdef __SAMD51__
-		NVIC_EnableIRQ(DMAC_0_IRQn);
-		NVIC_SetPriority(DMAC_0_IRQn, (1 << __NVIC_PRIO_BITS) - 1);
+		IRQn_Type irqs[] = { DMAC_0_IRQn, DMAC_1_IRQn, DMAC_2_IRQn,
+		  DMAC_3_IRQn, DMAC_4_IRQn };
+		for(uint8_t i=0; i<(sizeof irqs / sizeof irqs[0]); i++) {
+			NVIC_EnableIRQ(irqs[i]);
+			NVIC_SetPriority(irqs[i], (1<<__NVIC_PRIO_BITS)-1);
+		}
 #else
 		NVIC_EnableIRQ(DMAC_IRQn);
 		NVIC_SetPriority(DMAC_IRQn, (1 << __NVIC_PRIO_BITS) - 1);
