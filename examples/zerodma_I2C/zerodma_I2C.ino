@@ -61,9 +61,9 @@ uint8_t source_memory[DATA_LENGTH];
 
 volatile bool transfer_is_done = false; // Done yet?
 
-//debug switch used, for user selected ouput
-#define SERIAL_OBJECT SerialUSB
-//#define SERIAL_OBJECT Serial
+//debug switch, used for user selected serial ouput
+//#define SERIAL_OBJECT SerialUSB
+#define SERIAL_OBJECT Serial
 
 // Callback for end-of-DMA-transfer
 void dma_callback(Adafruit_ZeroDMA *dma) {
