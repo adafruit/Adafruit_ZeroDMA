@@ -15,8 +15,6 @@ static Adafruit_ZeroDMA *_dmaPtr[DMAC_CH_NUM] = {0}; // Init to NULL
 
 // Adapted from ASF3 interrupt_sam_nvic.c:
 
-#include <sam.h>
-
 static volatile unsigned long cpu_irq_critical_section_counter = 0;
 static volatile unsigned char cpu_irq_prev_interrupt_state     = 0;
 
