@@ -37,13 +37,14 @@ class Adafruit_ZeroDMA {
                   resume(void),
                   abort(void),
                   printStatus(ZeroDMAstatus s = DMA_STATUS_JOBSTATUS);
+  uint8_t         getChannel(void);
 
   // DMA descriptor functions
   DmacDescriptor *addDescriptor(void *src, void *dst, uint32_t count = 0,
                     dma_beat_size size = DMA_BEAT_SIZE_BYTE,
                     bool srcInc = true, bool dstInc = true, 
-					uint32_t stepSize = DMA_ADDRESS_INCREMENT_STEP_SIZE_1, 
-					bool stepSel = DMA_STEPSEL_DST);
+                    uint32_t stepSize = DMA_ADDRESS_INCREMENT_STEP_SIZE_1, 
+                    bool stepSel = DMA_STEPSEL_DST);
   void            changeDescriptor(DmacDescriptor *d, void *src = NULL,
                     void *dst = NULL, uint32_t count = 0);
 
