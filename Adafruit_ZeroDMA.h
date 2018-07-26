@@ -2,7 +2,11 @@
 #define _ADAFRUIT_ZERODMA_H_
 
 #include "Arduino.h"
-#include "utility/dma.h"
+#ifdef DMAC_RESERVED_CHANNELS // SAMD core > 1.2.1
+  #include <dma.h>
+#else
+  #include "utility/dma.h"
+#endif
 
 // Status codes returned by some DMA functions and/or held in
 // a channel's jobStatus variable.

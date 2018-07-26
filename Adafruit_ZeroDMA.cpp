@@ -1,13 +1,18 @@
 #include <Adafruit_ZeroDMA.h>
-#include "utility/dma.h"
 #include <malloc.h> // memalign() function
 
-static volatile uint32_t _channelMask = 0; // Bitmask of allocated channels
+#ifdef DMAC_RESERVED_CHANNELS // SAMD core > 1.2.1
+  #include <dma.h> // _descriptor[] and _writeback[] are extern'd here
+  static volatile uint32_t _channelMask = DMAC_RESERVED_CHANNELS;
+#else
+  #include "utility/dma.h"
+  static volatile uint32_t _channelMask = 0; // Bitmask of allocated channels
 
-// DMA descriptor list entry point (and writeback buffer) per channel
-__attribute__((__aligned__(16))) static DmacDescriptor // 128 bit alignment
-  _descriptor[DMAC_CH_NUM] SECTION_DMAC_DESCRIPTOR,
-  _writeback[DMAC_CH_NUM]  SECTION_DMAC_DESCRIPTOR;
+  // DMA descriptor list entry point (and writeback buffer) per channel
+  __attribute__((__aligned__(16))) static DmacDescriptor // 128 bit alignment
+    _descriptor[DMAC_CH_NUM] SECTION_DMAC_DESCRIPTOR,
+    _writeback[DMAC_CH_NUM]  SECTION_DMAC_DESCRIPTOR;
+#endif
 
 // Pointer to ZeroDMA object for each channel is needed for the
 // ISR (in C, outside of class context) to access callbacks.
@@ -179,6 +184,7 @@ ZeroDMAstatus Adafruit_ZeroDMA::allocate(void) {
 	cpu_irq_enter_critical();
 
 	if(!_channelMask) { // No channels allocated yet; initialize DMA!
+#if !defined(DMAC_RESERVED_CHANNELS)
 #if (SAML21) || (SAML22) || (SAMC20) || (SAMC21)
 		PM->AHBMASK.bit.DMAC_       = 1;
 #elif defined(__SAMD51__)
@@ -198,6 +204,7 @@ ZeroDMAstatus Adafruit_ZeroDMA::allocate(void) {
 
 		// Re-enable DMA controller with all priority levels
 		DMAC->CTRL.reg = DMAC_CTRL_DMAENABLE | DMAC_CTRL_LVLEN(0xF);
+#endif
 
 		// Enable DMA interrupt at lowest priority
 #ifdef __SAMD51__
