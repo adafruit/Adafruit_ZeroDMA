@@ -247,6 +247,10 @@ ZeroDMAstatus Adafruit_ZeroDMA::allocate(void) {
 	return DMA_STATUS_OK;
 }
 
+void Adafruit_ZeroDMA::setPriority(dma_priority pri) {
+	DMAC->Channel[channel].CHPRILVL.bit.PRILVL = pri;
+}
+
 // Deallocate DMA channel
 // TODO: should this delete/deallocate the descriptor list?
 ZeroDMAstatus Adafruit_ZeroDMA::free(void) {
