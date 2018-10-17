@@ -40,6 +40,7 @@ class Adafruit_ZeroDMA {
                   suspend(void),
                   resume(void),
                   abort(void),
+                  setPriority(dma_priority pri),
                   printStatus(ZeroDMAstatus s = DMA_STATUS_JOBSTATUS);
   uint8_t         getChannel(void);
 
