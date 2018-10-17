@@ -130,6 +130,14 @@ enum dma_address_increment_stepsize {
 	DMA_ADDRESS_INCREMENT_STEP_SIZE_128,
 };
 
+// higher numbers are higher priority
+enum dma_priority {
+	DMA_PRIORITY_0, // lowest (default)
+	DMA_PRIORITY_1,
+	DMA_PRIORITY_2,
+	DMA_PRIORITY_3, // highest
+};
+
 #ifdef __cplusplus
 }
 #endif
