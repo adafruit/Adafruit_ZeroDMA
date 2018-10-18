@@ -255,7 +255,11 @@ ZeroDMAstatus Adafruit_ZeroDMA::allocate(void) {
 }
 
 void Adafruit_ZeroDMA::setPriority(dma_priority pri) {
+#ifdef __SAMD51__
 	DMAC->Channel[channel].CHPRILVL.bit.PRILVL = pri;
+#else
+	DMAC->CHCTRLB.bit.LVL = pri;
+#endif
 }
 
 // Deallocate DMA channel
