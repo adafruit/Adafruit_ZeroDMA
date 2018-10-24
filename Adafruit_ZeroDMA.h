@@ -50,6 +50,8 @@ class Adafruit_ZeroDMA {
 
   void            _IRQhandler(uint8_t flags); // DO NOT TOUCH
 
+  bool 			  isActive();
+
  protected:  
   uint8_t                     channel;
   volatile enum ZeroDMAstatus jobStatus;
