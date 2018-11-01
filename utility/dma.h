@@ -1,3 +1,5 @@
+#if !defined(DMAC_RESERVED_CHANNELS) // SAMD core > 1.2.1 has this built in
+
 /**
  * \file
  *
@@ -143,3 +145,5 @@ enum dma_priority {
 #endif
 
 #endif // DMA_H_INCLUDED
+
+#endif // DMAC_RESERVED_CHANNELS
