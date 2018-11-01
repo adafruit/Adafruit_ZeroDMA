@@ -656,3 +656,7 @@ void Adafruit_ZeroDMA::printStatus(ZeroDMAstatus s) {
 		break;
 	}
 }
+
+bool Adafruit_ZeroDMA::isActive(){
+    return _writeback[channel].BTCTRL.bit.VALID;
+}
