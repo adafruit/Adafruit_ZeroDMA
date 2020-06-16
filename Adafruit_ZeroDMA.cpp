@@ -1,3 +1,31 @@
+/*!
+ * @file Adafruit_ZeroDMA.cpp
+ *
+ * @mainpage Adafruit DMA Arduino library for SAMD microcontrollers.
+ *
+ * @section intro_sec Introduction
+ *
+ * This is the documentation for Adafruit's DMA library for SAMD
+ * microcontrollers on the Arduino platform. SAMD21 and SAMD51 lines
+ * are supported.
+ *
+ * Adafruit invests time and resources providing this open source code,
+ * please support Adafruit and open-source hardware by purchasing
+ * products from Adafruit!
+ *
+ * @section dependencies Dependencies
+ *
+ * @section author Author
+ *
+ * Written by Phil "PaintYourDragon" Burgess for Adafruit Industries,
+ * based partly on DMA insights from Atmel ASFCORE 3.
+ *
+ * @section license License
+ *
+ * MIT license, all text here must be included in any redistribution.
+ *
+ */
+
 #include <Adafruit_ZeroDMA.h>
 #include <malloc.h> // memalign() function
 
@@ -9,9 +37,9 @@ static volatile uint32_t _channelMask = DMAC_RESERVED_CHANNELS;
 static volatile uint32_t _channelMask = 0; // Bitmask of allocated channels
 
 // DMA descriptor list entry point (and writeback buffer) per channel
-__attribute__((__aligned__(16))) static DmacDescriptor // 128 bit alignment
-    _descriptor[DMAC_CH_NUM] SECTION_DMAC_DESCRIPTOR,
-    _writeback[DMAC_CH_NUM] SECTION_DMAC_DESCRIPTOR;
+__attribute__((__aligned__(16))) static DmacDescriptor ///< 128 bit alignment
+    _descriptor[DMAC_CH_NUM] SECTION_DMAC_DESCRIPTOR, ///< Descriptor table
+    _writeback[DMAC_CH_NUM] SECTION_DMAC_DESCRIPTOR; ///< Writeback table
 #endif
 
 // Pointer to ZeroDMA object for each channel is needed for the
@@ -75,13 +103,16 @@ Adafruit_ZeroDMA::Adafruit_ZeroDMA(void) {
 
 // INTERRUPT SERVICE ROUTINE -----------------------------------------------
 
-// This is a C function that exists outside the Adafruit_ZeroDMA context.
-// DMA channel number is determined from the INTPEND register, from this
-// we get a ZeroDMA object pointer through the _dmaPtr[] array.
-// (It's done this way because jobStatus and callback[] are protected
-// elements in the ZeroDMA object -- we can't touch them in C, but the
-// next function after this, being part of the ZeroDMA class, can.)
 
+/*!
+    @brief  This is a C function that exists outside the Adafruit_ZeroDMA
+            context. DMA channel number is determined from the INTPEND
+            register, from this we get a ZeroDMA object pointer through the
+            _dmaPtr[] array. (It's done this way because jobStatus and
+            callback[] are protected elements in the ZeroDMA object -- we
+            can't touch them in C, but the next function after this, being
+            part of the ZeroDMA class, can.)
+*/
 #ifdef __SAMD51__
 void DMAC_0_Handler(void) {
 #else
@@ -356,7 +387,7 @@ void Adafruit_ZeroDMA::suspend(void) {
   cpu_irq_leave_critical();
 }
 
-#define MAX_JOB_RESUME_COUNT 10000
+#define MAX_JOB_RESUME_COUNT 10000 ///< Loop iteration threshold for timeout
 void Adafruit_ZeroDMA::resume(void) {
   cpu_irq_enter_critical(); // jobStatus is volatile
   if (jobStatus == DMA_STATUS_SUSPEND) {
