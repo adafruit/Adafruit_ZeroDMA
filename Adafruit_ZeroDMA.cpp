@@ -38,8 +38,8 @@ static volatile uint32_t _channelMask = 0; // Bitmask of allocated channels
 
 // DMA descriptor list entry point (and writeback buffer) per channel
 __attribute__((__aligned__(16))) static DmacDescriptor ///< 128 bit alignment
-    _descriptor[DMAC_CH_NUM] SECTION_DMAC_DESCRIPTOR, ///< Descriptor table
-    _writeback[DMAC_CH_NUM] SECTION_DMAC_DESCRIPTOR; ///< Writeback table
+    _descriptor[DMAC_CH_NUM] SECTION_DMAC_DESCRIPTOR,  ///< Descriptor table
+    _writeback[DMAC_CH_NUM] SECTION_DMAC_DESCRIPTOR;   ///< Writeback table
 #endif
 
 // Pointer to ZeroDMA object for each channel is needed for the
@@ -102,7 +102,6 @@ Adafruit_ZeroDMA::Adafruit_ZeroDMA(void) {
 // TODO: add destructor? Should stop job, delete descriptors, free channel.
 
 // INTERRUPT SERVICE ROUTINE -----------------------------------------------
-
 
 /*!
     @brief  This is a C function that exists outside the Adafruit_ZeroDMA

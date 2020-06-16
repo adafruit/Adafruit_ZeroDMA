@@ -40,7 +40,7 @@ enum ZeroDMAstatus {
   DMA_STATUS_JOBSTATUS = -1 // For printStatus() function
 };
 
-/*! 
+/*!
     @brief  Class encapsulating DMA jobs and descriptors.
 */
 class Adafruit_ZeroDMA {
@@ -234,10 +234,10 @@ public:
   bool isActive();
 
 protected:
-  uint8_t channel;     ///< DMA channel index (0 to DMAC_CH_NUM-1, or 0xFF)
+  uint8_t channel; ///< DMA channel index (0 to DMAC_CH_NUM-1, or 0xFF)
   volatile enum ZeroDMAstatus jobStatus; ///< Last known DMA job status
-  bool hasDescriptors; ///< 'true' if one or more descriptors assigned
-  bool loopFlag;       ///< 'true' if descriptor chain loops back to start
+  bool hasDescriptors;       ///< 'true' if one or more descriptors assigned
+  bool loopFlag;             ///< 'true' if descriptor chain loops back to start
   uint8_t peripheralTrigger; ///< Value set by setTrigger()
   dma_transfer_trigger_action triggerAction; ///< Value set by setAction()
   void (*callback[DMA_CALLBACK_N])(Adafruit_ZeroDMA *); ///< Callback func *s
