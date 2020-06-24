@@ -415,7 +415,7 @@ void Adafruit_ZeroDMA::abort(void) {
   if (channel <= DMAC_CH_NUM) {
     cpu_irq_enter_critical();
 #ifdef __SAMD51__
-    DMAC->Channel[channel].CHCTRLA.reg = 0; // Disable channel
+    DMAC->Channel[channel].CHCTRLA.bit.ENABLE = 0; // Disable channel
 #else
     DMAC->CHID.bit.ID = channel; // Select channel
     DMAC->CHCTRLA.reg = 0;       // Disable
