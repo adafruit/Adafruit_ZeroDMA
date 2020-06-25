@@ -27,6 +27,7 @@
  */
 
 #include <Adafruit_ZeroDMA.h>
+#include <stdlib.h>
 #include <malloc.h> // memalign() function
 
 #ifdef DMAC_RESERVED_CHANNELS // SAMD core > 1.2.1
