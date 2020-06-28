@@ -28,6 +28,7 @@
 
 #include <Adafruit_ZeroDMA.h>
 #include <malloc.h> // memalign() function
+#include <stdlib.h>
 
 #ifdef DMAC_RESERVED_CHANNELS // SAMD core > 1.2.1
 #include <dma.h> // _descriptor[] and _writeback[] are extern'd here
