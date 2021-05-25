@@ -30,6 +30,11 @@
 #include <malloc.h> // memalign() function
 #include <stdlib.h>
 
+#ifdef USE_TINYUSB
+// For Serial when selecting TinyUSB
+#include <Adafruit_TinyUSB.h>
+#endif
+
 #ifdef DMAC_RESERVED_CHANNELS // SAMD core > 1.2.1
 #include <dma.h> // _descriptor[] and _writeback[] are extern'd here
 static volatile uint32_t _channelMask = DMAC_RESERVED_CHANNELS;
