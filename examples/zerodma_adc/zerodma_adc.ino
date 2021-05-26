@@ -31,6 +31,7 @@ uint16_t peak_to_peak(uint16_t *data, int data_length){
 
 
 void dma_callback(Adafruit_ZeroDMA *dma) {
+  (void) dma;
   if (filling_first_half) {
     // DMA is filling the first half of the buffer, use data from the second half
     active_adc_buffer = &adc_buffer[SAMPLE_BLOCK_LENGTH];
