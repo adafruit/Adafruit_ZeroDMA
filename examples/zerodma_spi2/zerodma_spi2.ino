@@ -10,7 +10,11 @@
 // Declare our own SPI peripheral 'mySPI' on pins 11/12/13:
 // (Do not call this SPI1; Arduino Zero and Metro M0 already
 // have an SPI1 (the EDBG interface) and it won't compile.)
-SPIClass mySPI(
+#if defined(ARDUINO_SAMD_ADAFRUIT)
+SPIClass mySPI(     // Adafruit SAMD board support calls this SPIClass
+#else
+SPIClassSAMD mySPI( // Arduino SAMD now calls it SPIClassSAMD
+#endif
   &sercom1,         // -> Sercom peripheral
   34,               // MISO pin (also digital pin 12)
   37,               // SCK pin  (also digital pin 13)
@@ -101,4 +105,3 @@ void loop() {
   buffer_being_filled = 1 - buffer_being_filled;
   buffer_value++;
 }
-
