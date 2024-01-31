@@ -79,7 +79,24 @@ public:
             DMA_STATUS_BUSY if channel is busy (can't deallocate while in use).
             DMA_STATUS_ERR_NOT_INITIALIZED if channel isn't in use.
   */
-  ZeroDMAstatus free(void);
+  ZeroDMAstatus freeChannel(void);
+
+  /*!
+    @brief  Deallocates a previously-allocated DMA channel and, optionally,
+            all associated descriptors. By default, only the channel is
+            deallocated.
+
+    @param  freeChannelAndDescriptors  If true, deallocate the channel and all
+                                       associated descriptors.
+                                       If false (default), deallocate only the
+                                       channel and leave descriptors unaffected.
+
+    @return ZeroDMAstatus type:
+            DMA_STATUS_OK on success.
+            DMA_STATUS_BUSY if channel is busy (can't deallocate while in use).
+            DMA_STATUS_ERR_NOT_INITIALIZED if channel isn't in use.
+  */
+  ZeroDMAstatus free(bool freeChannelAndDescriptors = false);
 
   /*!
     @brief  Activate a previously allocated-and-configured DMA channel's
@@ -218,6 +235,30 @@ public:
   */
   void changeDescriptor(DmacDescriptor *d, void *src = NULL, void *dst = NULL,
                         uint32_t count = 0);
+
+  /*!
+    @brief  Deallocates a previously-allocated DMA descriptor.
+            This deallocates the DESCRIPTOR, not any associated CHANNEL.
+
+    @param desc  Pointer to descriptor struct (as returned by addDescriptor()).
+
+    @return ZeroDMAstatus type:
+            DMA_STATUS_OK on success.
+            DMA_STATUS_BUSY if channel is busy (can't deallocate while in use).
+            DMA_STATUS_ERR_NOT_INITIALIZED if channel isn't in use.
+  */
+  ZeroDMAstatus freeDescriptor(DmacDescriptor *desc);
+
+  /*!
+    @brief  Deallocates all previously-allocated DMA descriptors.
+            This deallocates the DESCRIPTORS, not any associated CHANNEL.
+
+    @return ZeroDMAstatus type:
+            DMA_STATUS_OK on success.
+            DMA_STATUS_BUSY if channel is busy (can't deallocate while in use).
+            DMA_STATUS_ERR_NOT_INITIALIZED if channel isn't in use.
+  */
+  ZeroDMAstatus freeDescriptors(void);
 
   /*!
     @brief  Interrupt handler function, used internally by the library,
