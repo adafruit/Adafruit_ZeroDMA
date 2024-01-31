@@ -290,6 +290,53 @@ ZeroDMAstatus Adafruit_ZeroDMA::allocate(void) {
   return DMA_STATUS_OK;
 }
 
+ZeroDMAstatus Adafruit_ZeroDMA::freeChannel(void) {
+
+  while (DMA_STATUS_BUSY == jobStatus) {
+    yield();
+  } // Passively wait for job to finish
+
+  if (channel >= DMAC_CH_NUM) {
+    return DMA_STATUS_ERR_NOT_FOUND;
+  } // Invalid channel
+
+  if (0 == (_channelMask & (1 << channel))) {
+    return DMA_STATUS_ERR_NOT_INITIALIZED;
+  } // Channel not in use
+
+  cpu_irq_enter_critical();
+
+  _dmaPtr[channel] = NULL;         // Clear pointer
+  _channelMask &= ~(1 << channel); // ...and bit.
+
+  if (!_channelMask) {
+    // No more channels in use, disable DMA IP
+#if (__SAMD51__)
+    NVIC_DisableIRQ(DMAC_0_IRQn); // Disable DMA interrupt
+    MCLK->AHBMASK.bit.DMAC_ = 0;  // Disable DMA clock
+#else
+    NVIC_DisableIRQ(DMAC_IRQn); // Disable DMA interrupt
+#if !(SAML21) && !(SAML22) && !(SAMC20) && !(SAMC21)
+    PM->APBBMASK.bit.DMAC_ = 0; // Disable DMA clock (D21-only)
+#endif
+    PM->AHBMASK.bit.DMAC_ = 0;  // Disable DMA clock
+#endif
+    DMAC->CTRL.bit.DMAENABLE = 0; // Disable DMA controller
+  }
+
+  // Finally, disable the channel
+#if (__SAMD51__)
+  DMAC->Channel[channel].CHCTRLA.bit.ENABLE = 0;
+#else
+  DMAC->CHID.bit.ID = channel;
+  DMAC->CHCTRLA.bit.ENABLE = 0;
+#endif
+
+  cpu_irq_leave_critical();
+
+  return DMA_STATUS_OK;
+}
+
 void Adafruit_ZeroDMA::setPriority(dma_priority pri) {
 #ifdef __SAMD51__
   DMAC->Channel[channel].CHPRILVL.bit.PRILVL = pri;
@@ -298,40 +345,15 @@ void Adafruit_ZeroDMA::setPriority(dma_priority pri) {
 #endif
 }
 
-// Deallocate DMA channel
-// TODO: should this delete/deallocate the descriptor list?
-ZeroDMAstatus Adafruit_ZeroDMA::free(void) {
-
-  ZeroDMAstatus status = DMA_STATUS_OK;
-
-  cpu_irq_enter_critical(); // jobStatus is volatile
-
-  if (jobStatus == DMA_STATUS_BUSY) {
-    status = DMA_STATUS_BUSY; // Can't leave when busy
-  } else if ((channel < DMAC_CH_NUM) && (_channelMask & (1 << channel))) {
-    // Valid in-use channel; release it
-    _channelMask &= ~(1 << channel); // Clear bit
-    if (!_channelMask) {             // No more channels in use?
-#ifdef __SAMD51__
-      NVIC_DisableIRQ(DMAC_0_IRQn); // Disable DMA interrupt
-      DMAC->CTRL.bit.DMAENABLE = 0; // Disable DMA
-      MCLK->AHBMASK.bit.DMAC_ = 0;  // Disable DMA clock
-#else
-      NVIC_DisableIRQ(DMAC_IRQn);   // Disable DMA interrupt
-      DMAC->CTRL.bit.DMAENABLE = 0; // Disable DMA
-      PM->APBBMASK.bit.DMAC_ = 0;   // Disable DMA clocks
-      PM->AHBMASK.bit.DMAC_ = 0;
-#endif
+// Deallocate DMA channel and, optionally, all associated descriptors.
+ZeroDMAstatus Adafruit_ZeroDMA::free(bool freeChannelAndDescriptors) {
+  if (freeChannelAndDescriptors) {
+    ZeroDMAstatus status = freeDescriptors();
+    if (status != DMA_STATUS_OK) {
+      return status;
     }
-    _dmaPtr[channel] = NULL;
-    channel = 0xFF;
-  } else {
-    status = DMA_STATUS_ERR_NOT_INITIALIZED; // Channel not in use
   }
-
-  cpu_irq_leave_critical();
-
-  return status;
+  return freeChannel();
 }
 
 // Start DMA transfer job.  Channel and descriptors should be allocated
@@ -634,7 +656,87 @@ void Adafruit_ZeroDMA::changeDescriptor(DmacDescriptor *desc, void *src,
 #endif
 }
 
-// TODO: delete descriptor, delete whole descriptor chain
+ZeroDMAstatus Adafruit_ZeroDMA::freeDescriptor(DmacDescriptor *desc) {
+
+  while (DMA_STATUS_BUSY == jobStatus) {
+    yield();
+  } // Passively wait for job to finish
+
+  if (!hasDescriptors) {
+    return DMA_STATUS_ERR_NOT_INITIALIZED;
+  } // No descriptors allocated
+
+  cpu_irq_enter_critical();
+
+  const uint32_t addr = (const uint32_t)(desc);
+
+  // Scan descriptor list to find entry with matching address
+  DmacDescriptor *const head = &_descriptor[channel];
+  DmacDescriptor *prev = head;
+  while (prev->DESCADDR.reg != addr) {
+    prev = (DmacDescriptor *)prev->DESCADDR.reg;
+    // End-of-list can be indicated by either:
+    //  a. prev.DESCADDR.reg == NULL               => un-looped list
+    //  b. prev.DESCADDR.reg == head.DESCADDR.reg  => looped list
+    if (!prev || prev == head) {
+      cpu_irq_leave_critical();
+      return DMA_STATUS_ERR_NOT_INITIALIZED; // Not found
+    }
+  }
+
+  // Found it; unlink from list
+  prev->DESCADDR.reg = desc->DESCADDR.reg;
+
+  // If this was the last descriptor in the list, clear the DESCADDR value to
+  // indicate an un-looped list.
+  if (prev == desc) {
+    head->DESCADDR.reg = 0;
+  }
+
+  // Zero and free descriptor memory
+  memset(desc, 0, sizeof(*desc));
+  std::free(desc);
+
+  cpu_irq_leave_critical();
+
+  return DMA_STATUS_OK;
+}
+
+ZeroDMAstatus Adafruit_ZeroDMA::freeDescriptors(void) {
+
+  while (DMA_STATUS_BUSY == jobStatus) {
+    yield();
+  } // Passively wait for job to finish
+
+  if (!hasDescriptors) {
+    return DMA_STATUS_ERR_NOT_INITIALIZED;
+  } // No descriptors allocated
+
+  cpu_irq_enter_critical();
+
+  // Scan descriptor list to find last entry. If an entry's DESCADDR value is 0,
+  // that's the end of the list and it's currently un-looped. If the DESCADDR
+  // value is the same as the first entry, that's the end of the list and it's
+  // looped. Either way, set every entry's DESCADDR value to 0.
+  DmacDescriptor *const head = &_descriptor[channel];
+  DmacDescriptor *prev = head;
+  while (prev->DESCADDR.reg && prev->DESCADDR.reg != (uint32_t)head) {
+    DmacDescriptor *next = (DmacDescriptor *)prev->DESCADDR.reg;
+    memset(prev, 0, sizeof(*prev));
+    std::free(prev);
+    prev = next;
+  }
+  memset(prev, 0, sizeof(*prev));
+  std::free(prev);
+
+  memset(head, 0, sizeof(*head)); // Clear descriptor list head
+
+  hasDescriptors = false;
+
+  cpu_irq_leave_critical();
+
+  return DMA_STATUS_OK;
+}
 
 // Select whether channel's descriptor list should repeat or not.
 // This can be done before or after channel & any descriptors are allocated.
