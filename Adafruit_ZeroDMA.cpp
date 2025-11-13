@@ -144,10 +144,10 @@ void DMAC_Handler(void) {
 }
 
 #ifdef __SAMD51__
-void DMAC_1_Handler(void) __attribute__((weak, alias("DMAC_0_Handler")));
-void DMAC_2_Handler(void) __attribute__((weak, alias("DMAC_0_Handler")));
-void DMAC_3_Handler(void) __attribute__((weak, alias("DMAC_0_Handler")));
-void DMAC_4_Handler(void) __attribute__((weak, alias("DMAC_0_Handler")));
+void DMAC_1_Handler(void) __attribute__((alias("DMAC_0_Handler")));
+void DMAC_2_Handler(void) __attribute__((alias("DMAC_0_Handler")));
+void DMAC_3_Handler(void) __attribute__((alias("DMAC_0_Handler")));
+void DMAC_4_Handler(void) __attribute__((alias("DMAC_0_Handler")));
 #endif
 
 void Adafruit_ZeroDMA::_IRQhandler(uint8_t flags) {
