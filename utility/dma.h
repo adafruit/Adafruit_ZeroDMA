@@ -57,13 +57,15 @@ extern "C" {
 #endif
 
 #if (SAML21) || (SAML22) || (SAMC20) || (SAMC21) || defined(__DOXYGEN__) ||    \
-    defined(__SAMD51__)
+    defined(__SAMD51__) || defined(__SAME51__) || defined(__SAME53__) ||       \
+    defined(__SAME54__)
 #define FEATURE_DMA_CHANNEL_STANDBY
 #endif
 
 enum dma_transfer_trigger_action {
-#ifdef __SAMD51__
-  // SAMD51 has a 'burst' transfer which can be set to one
+#if defined(__SAMD51__) || defined(__SAME51__) || defined(__SAME53__) ||       \
+    defined(__SAME54__)
+  // SAMD51/SAME5x have a 'burst' transfer which can be set to one
   // beat to accomplish same idea as SAMD21's 'beat' transfer.
   // Trigger name is ACTON_BEAT for backward compatibility.
   DMA_TRIGGER_ACTON_BLOCK = DMAC_CHCTRLA_TRIGACT_BLOCK_Val,

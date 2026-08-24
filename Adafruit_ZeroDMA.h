@@ -25,6 +25,10 @@
 #include "utility/dma.h"
 #endif
 
+#if defined(__SAME53__) || defined(__SAME54__)
+typedef dmac_descriptor_registers_t DmacDescriptor;
+#endif // __SAME53__ / __SAME54__
+
 /** Status codes returned by some DMA functions and/or held in
     a channel's jobStatus variable. */
 enum ZeroDMAstatus {
